@@ -20,6 +20,25 @@
 Canvas 不进这个仓库（它依赖本地 IDE 渲染）。仓库里的 [`log.md`](./log.md) 是纯文本的学习索引，
 用来记录学过什么、避免重复选题，也方便定时任务读取。
 
+## 每日提醒
+
+企业账号未开放 Cursor Automations，所以提醒改用 Windows 计划任务实现。
+工作日 10:00 弹一条系统通知，并把 Cursor 打开到这个工作区。
+
+```powershell
+# 安装 / 更新
+powershell -ExecutionPolicy Bypass -File scripts\install-reminder.ps1
+
+# 手动触发一次
+Start-ScheduledTask -TaskName 'Daily Knowledge Reminder'
+
+# 卸载
+Unregister-ScheduledTask -TaskName 'Daily Knowledge Reminder' -Confirm:$false
+```
+
+`scripts/` 下的两个 `.ps1` 必须存成 **UTF-8 with BOM**——Windows PowerShell 5.1 否则会按 ANSI
+读取，中文和续行反引号会一起损坏。
+
 ## 偏好
 
 - **深度**：深入。愿意花 15 分钟，要推导、数据和历史脉络，不要只给结论。
