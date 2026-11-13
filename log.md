@@ -196,6 +196,7 @@
 - 用卫星找失落之城：乌巴尔与遥感考古
 - 凯恩斯《我们后代的经济前景》：一百年后的预言对了多少
 - 光子晶体与光纤：把光关在结构里
+- 第二批拉丁词根（Day 31 的 30 个用熟后再加）：dict、voc、port（搬运）、mov/mot、ven/vent、sens/sent、tend/tens、form、sign、press、clud、fin、man(u)、cred、grad/gress、vid/vis、gen、solv；希腊语词根 tele-、micro-、-graph、-meter、phon、log 另作一批
 - 克里奥尔语与洋泾浜：新语言是怎么在几代人里诞生的
 - 汉语方言的分化：中古汉语怎么变成普通话、粤语、吴语、闽语
 - 蓝色颜料史：群青、普鲁士蓝、YInMn 蓝，人类怎么得到一种蓝
