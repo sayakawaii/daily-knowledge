@@ -231,7 +231,7 @@ sudo nvpmodel -m 2 && sudo jetson_clocks
 yolo benchmark model=yolo11n.pt data=coco8.yaml imgsz=640 half=True device=0
 ```
 
-引擎**必须在这块板子上导出**（第 2 课讲过）。FP16 推理接近官方的约 4.5 ms 就算过关。第 3 周要用的 COCO 验证集（5000 张图，几百 MB）也建议在家里提前下载：`yolo val model=yolo11n.pt data=coco.yaml` 会自动下载。
+引擎**必须在这块板子上导出**（第 2 课讲过）。FP16 推理接近官方的约 4.5 ms 就算过关。第 3 周要用的 COCO 验证集（5000 张图，约 0.8 GB）也建议提前下载。**不要用 `yolo val data=coco.yaml` 自动下载**：它会连 19 GB 的训练集一起下载。只下载验证集的做法见文末「实际装机记录」。
 
 ## 第 7 步：ROS 2 Jazzy（第 3 课要用）
 
@@ -389,7 +389,19 @@ trtexec --onnx=yolo11n.onnx --saveEngine=yolo11n_trt11_fp16.engine   # 不要加
 - **访问 GitHub 要走代理**：板子上装了 mihomo（Clash Meta 内核），作为系统服务 `mihomo` 运行。配置在 `/etc/mihomo/config.yaml`（权限 600，含密钥，不要提交到仓库），只在本机监听 `127.0.0.1:7890`。VPS 只有 IPv6 地址，所以配置里要加 `ipv6: true`（mihomo 默认关闭）。地址库 `geoip.metadb` 要先在电脑上下载好再拷进去，并设 `geo-auto-update: false`，否则 mihomo 首次启动会去 GitHub 下载而卡住。规则是国内地址直连，其他走代理。
   - 命令行：`proxy_on` / `proxy_off`（写在 `~/.bashrc` 里）；git 访问 github.com 自动走代理。
   - 切换节点：`curl -X PUT -d '{"name":"VLESS-Reality"}' http://127.0.0.1:9090/proxies/Proxy`。实测 Hysteria2 更快（约 2.2 MB/s），设为默认。
+- **虚拟环境里 NumPy 报错**（`A module that was compiled using NumPy 1.x cannot be run in NumPy 2.x`）：装 ROS 时带进来的系统 matplotlib 是旧版本，只能配 NumPy 1.x，而虚拟环境开了「使用系统包」，会用到它。解决：在虚拟环境里另装新版，`pip install -U matplotlib scipy`，系统那边不用动。
 - **流量**：`nvidia-jetpack` 下载约 7 GB，系统升级约 1.7 GB，再加上 PyTorch、ROS 桌面版，总共约 10 GB。
+
+### 已经提前准备好的东西（2026-11-20）
+
+- **功耗模式**：已切到 MAXN_SUPER（`nvpmodel -m 2`），不需要重启。测性能前还要运行 `sudo jetson_clocks`，重启后会失效。
+- **锁定版本**：`apt-mark hold nvidia-jetpack nvidia-tensorrt tensorrt tensorrt-libs libnvinfer11 python3-libnvinfer`。要解锁用 `apt-mark unhold`。
+- **模型**：`~/projects/yolo/` 下有 `yolo11n.pt`、`yolo11s.pt`、`yolo11m.pt`。
+- **COCO 验证集**：在 `~/datasets/coco`，只有 val2017 的 5000 张图和标注，配置文件是 `~/datasets/coco-val.yaml`。做法：从 Ultralytics 的 GitHub 下载 `coco2017labels.zip`，从 `images.cocodataset.org` 下载 `val2017.zip`，解压后写一个只有 val 的 yaml（train 也指向 val）。用法：`yolo val model=yolo11n.pt data=~/datasets/coco-val.yaml device=0`。
+- **精度基线**：yolo11n，PyTorch FP32，mAP50-95 = 0.389（官方 39.5，差距来自 Ultralytics 自带评估和 pycocotools 的算法不同）。每张图的耗时：前处理 0.8 ms，推理 8.8 ms，后处理 2.7 ms（batch=16）。
+- **摄像头**：USB 摄像头（得力 1080P）在 `/dev/video0`，1280×720 MJPG 实测 29.8 帧/秒。IMX219 还没接；接上后要用 `sudo /opt/nvidia/jetson-io/jetson-io.py` 选对应的 IMX219 配置，再重启。
+- **ROS 摄像头驱动**：`ros-jazzy-v4l2-camera`、`image-tools`、`rqt-image-view`、`image-transport-plugins`。
+- **电脑上的 SSH 别名**：`~/.ssh/config` 里有 `jetson`（USB 线，`192.168.55.1`）和 `jetson-wifi`（热点，`172.20.10.7`）。在 Cursor 里用 Remote-SSH 连 `jetson` 就行。
 
 ## 常见问题
 
