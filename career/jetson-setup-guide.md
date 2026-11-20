@@ -2,6 +2,8 @@
 
 写于 2026-11-18，版本信息按当天的英伟达官方文档核对。配合职业转型课第 2 课（TensorRT 部署）和第 3 课（ROS2 小车）使用。
 
+> 2026-11-20 已按本指南装完。实际结果和本文有几处不同（自动升到 JetPack 7.2.2、TensorRT 变成 11.4 等），见文末「实际装机记录」。
+
 **在自己家的网络或手机热点下操作**，不要用公司网络：要下载好几 GB 的东西，而且私人设备不该接公司内网。
 
 ## 你这块板子的情况（2026-11-18 检查）
@@ -342,6 +344,49 @@ df -h / | tail -1
 free -h | head -2
 hostname -I
 ```
+
+## 实际装机记录（2026-11-20）
+
+### 装出来的版本
+
+| 组件 | 实际版本 | 和上文的差异 |
+| --- | --- | --- |
+| Jetson Linux | r39.2.2（2026-11-13 发布） | U 盘装的是 r39.2.1，`apt dist-upgrade` 自动升到了 r39.2.2 |
+| JetPack | `nvidia-jetpack 7.2.2-b56` | 上文写的是 7.2.1 |
+| CUDA / cuDNN | 13.2 / 9.20 | 一致 |
+| TensorRT | **11.4.1**（包名 `libnvinfer11`） | 上文写的是 10.16.2。7.2.2 的 `nvidia-tensorrt` 依赖 11.4，7.2.1 依赖 10.16.2 |
+| PyTorch | 2.15.0+cu132，GPU 矩阵运算通过 | 按 cu130 源装，装上的是 cu132 版本，不影响使用 |
+| ONNX Runtime | 1.24.0，可用 TensorRT / CUDA 加速 | 一致 |
+| Ultralytics | 8.4.216 | 一致 |
+| ROS 2 | Jazzy 桌面版加 7.2 节的全部包，talker/listener 通过 | `rosdep update` 因为访问不了 GitHub 失败了，暂不影响 |
+| 硬盘占用 | 44 GB / 233 GB | |
+
+`compatible` 显示的是 `p3767-0005-super`，和旧系统显示的 `0003` 不一样，内存仍是 8 GB，不影响使用。
+
+### TensorRT 11 和第 2 课
+
+Ultralytics 目前要求 TensorRT 低于 11（`tensorrt-cu13>=10.15,<11`）。所以 6.5 节的 `yolo export format=engine` 会自动用 pip 去装一个 TensorRT 10，**看到这种情况就按 Ctrl+C 停掉**，不要让它装。TensorRT 11 也去掉了 `trtexec --fp16` 参数（报 `Unknown option: --fp16`），精度改为由 ONNX 里的数据类型决定。
+
+决定保留 11.4，第 2 课改用下面的流程，已在板子上验证：
+
+```bash
+source ~/venvs/yolo/bin/activate && cd ~/projects/yolo
+yolo export model=yolo11n.pt format=onnx half=True device=0     # 导出 FP16 的 ONNX
+trtexec --onnx=yolo11n.onnx --saveEngine=yolo11n_trt11_fp16.engine   # 不要加 --fp16
+```
+
+实测（25W 模式、没有运行 `jetson_clocks`）：FP16 引擎 GPU 计算时间中位 4.29 ms（约 230 次/秒）；FP32 引擎中位 7.70 ms。
+
+如果以后想退回 TensorRT 10.16：英伟达源里还有 `nvidia-jetpack=7.2.1-b49` 和 `tensorrt=10.16.2.10-1+cuda13.2`，可以指定版本安装，再用 `apt-mark hold` 锁住。
+
+### 装机过程踩到的坑
+
+- **桌面右上角的 Wi-Fi 图标不见了**：网卡和驱动（`rtl8822ce`）都正常，只是没有连上。用命令连：`sudo nmcli con up "热点名" ifname wlP1p1s0`。已设成断开后无限重试：`sudo nmcli con mod "热点名" connection.autoconnect-retries 0`。
+- **iPhone 热点扫不到**：iPhone 在一段时间没有新设备连接时会停止广播热点。打开「设置 → 个人热点」页面，并开启「最大兼容性」。
+- **公司电脑会自动连回公司 Wi-Fi**：那是组策略推送的配置，改不了。改用 USB-C 线直连：线插在板子唯一的 USB-C 口上，电脑上会出现 `Remote NDIS` 网卡，地址是 `192.168.55.100`，然后 `ssh 用户名@192.168.55.1`。线一定要插紧，插不紧时会丢包，SSH 反复断开。
+- **长时间的安装放到后台跑**：用 `sudo systemd-run --unit=名字 bash -c "脚本 > 日志 2>&1"`。SSH 断开也不影响，用 `tail 日志` 查看进度。
+- **apt 实际读的是 `/etc/apt/sources.list`**：这次 U 盘装的系统里 `ubuntu.sources` 是空文件，换清华源要改 `/etc/apt/sources.list`。
+- **流量**：`nvidia-jetpack` 下载约 7 GB，系统升级约 1.7 GB，再加上 PyTorch、ROS 桌面版，总共约 10 GB。
 
 ## 常见问题
 
