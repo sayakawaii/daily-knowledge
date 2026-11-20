@@ -358,7 +358,7 @@ hostname -I
 | PyTorch | 2.15.0+cu132，GPU 矩阵运算通过 | 按 cu130 源装，装上的是 cu132 版本，不影响使用 |
 | ONNX Runtime | 1.24.0，可用 TensorRT / CUDA 加速 | 一致 |
 | Ultralytics | 8.4.216 | 一致 |
-| ROS 2 | Jazzy 桌面版加 7.2 节的全部包，talker/listener 通过 | `rosdep update` 因为访问不了 GitHub 失败了，暂不影响 |
+| ROS 2 | Jazzy 桌面版加 7.2 节的全部包，talker/listener 通过 | `rosdep update` 直连 GitHub 失败，配好代理后通过 |
 | 硬盘占用 | 44 GB / 233 GB | |
 
 `compatible` 显示的是 `p3767-0005-super`，和旧系统显示的 `0003` 不一样，内存仍是 8 GB，不影响使用。
@@ -386,6 +386,9 @@ trtexec --onnx=yolo11n.onnx --saveEngine=yolo11n_trt11_fp16.engine   # 不要加
 - **公司电脑会自动连回公司 Wi-Fi**：那是组策略推送的配置，改不了。改用 USB-C 线直连：线插在板子唯一的 USB-C 口上，电脑上会出现 `Remote NDIS` 网卡，地址是 `192.168.55.100`，然后 `ssh 用户名@192.168.55.1`。线一定要插紧，插不紧时会丢包，SSH 反复断开。
 - **长时间的安装放到后台跑**：用 `sudo systemd-run --unit=名字 bash -c "脚本 > 日志 2>&1"`。SSH 断开也不影响，用 `tail 日志` 查看进度。
 - **apt 实际读的是 `/etc/apt/sources.list`**：这次 U 盘装的系统里 `ubuntu.sources` 是空文件，换清华源要改 `/etc/apt/sources.list`。
+- **访问 GitHub 要走代理**：板子上装了 mihomo（Clash Meta 内核），作为系统服务 `mihomo` 运行。配置在 `/etc/mihomo/config.yaml`（权限 600，含密钥，不要提交到仓库），只在本机监听 `127.0.0.1:7890`。VPS 只有 IPv6 地址，所以配置里要加 `ipv6: true`（mihomo 默认关闭）。地址库 `geoip.metadb` 要先在电脑上下载好再拷进去，并设 `geo-auto-update: false`，否则 mihomo 首次启动会去 GitHub 下载而卡住。规则是国内地址直连，其他走代理。
+  - 命令行：`proxy_on` / `proxy_off`（写在 `~/.bashrc` 里）；git 访问 github.com 自动走代理。
+  - 切换节点：`curl -X PUT -d '{"name":"VLESS-Reality"}' http://127.0.0.1:9090/proxies/Proxy`。实测 Hysteria2 更快（约 2.2 MB/s），设为默认。
 - **流量**：`nvidia-jetpack` 下载约 7 GB，系统升级约 1.7 GB，再加上 PyTorch、ROS 桌面版，总共约 10 GB。
 
 ## 常见问题
