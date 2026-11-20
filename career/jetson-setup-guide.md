@@ -401,6 +401,12 @@ trtexec --onnx=yolo11n.onnx --saveEngine=yolo11n_trt11_fp16.engine   # 不要加
 - **精度基线**：yolo11n，PyTorch FP32，mAP50-95 = 0.389（官方 39.5，差距来自 Ultralytics 自带评估和 pycocotools 的算法不同）。每张图的耗时：前处理 0.8 ms，推理 8.8 ms，后处理 2.7 ms（batch=16）。
 - **摄像头**：USB 摄像头（得力 1080P）在 `/dev/video0`，1280×720 MJPG 实测 29.8 帧/秒。IMX219 还没接；接上后要用 `sudo /opt/nvidia/jetson-io/jetson-io.py` 选对应的 IMX219 配置，再重启。
 - **ROS 摄像头驱动**：`ros-jazzy-v4l2-camera`、`image-tools`、`rqt-image-view`、`image-transport-plugins`。
+- **Gazebo 仿真（Harmonic）和 TurtleBot3**：装在板子上（`ros_gz_sim`、`turtlebot3_gazebo`、`nav2_minimal_tb3_sim`）。**不要装 `ros-jazzy-ros-gz`、`ros-jazzy-turtlebot3`、`ros-jazzy-turtlebot3-navigation2` 这三个包**：它们会把 Ubuntu 自带的 OpenCV 4.6 装回来，和 JetPack 的 OpenCV 4.8 冲突，apt 会报 `pkgProblemResolver::Resolve generated breaks`。只装需要的子包。`~/.bashrc` 里设了 `TURTLEBOT3_MODEL=waffle`。
+- **Isaac ROS 4.6**：装了 `isaac-ros-cli`，模式是 docker，镜像（2.27 GB）已经用 `isaac-ros activate --build-only` 预先下载好了，工作区在 `~/workspaces/isaac_ros-dev`。Docker 走代理（`/etc/systemd/system/docker.service.d/proxy.conf`），带 GPU 的容器测试通过。
+- **Ollama 0.40.16 + Qwen3 4B**：模型跑在 GPU 上（`ollama ps` 显示 100% GPU），生成速度约 16.8 token/秒。第一次加载约 2 分钟。Ollama 服务也走代理。
+- **DeepStream 还没装**：9.1 和 9.2 都依赖 TensorRT 10，跟当前的 TensorRT 11.4 冲突。
+- **家里宽带用 IPv6 时，清华镜像会返回 403**：已经让 apt 强制走 IPv4（`/etc/apt/apt.conf.d/99force-ipv4`）。
+- **公司电脑开着 VPN 时，连不上家里局域网的板子**：VPN 把局域网地址的流量也转进了公司隧道。USB 线上的 IPv6 本地地址 `fe80::1` 不受影响，所以 `jetson` 别名改成了 `fe80::1%%79`（`79` 是 Windows 上 USB 网卡的编号，换口后可能会变）。另外，USB 线会给 Windows 虚拟出两张网卡，它们抢 `192.168.55.100` 这个地址，这就是 IPv4 时断时续的原因。
 - **电脑上的 SSH 别名**：`~/.ssh/config` 里有 `jetson`（USB 线，`192.168.55.1`）和 `jetson-wifi`（热点，`172.20.10.7`）。在 Cursor 里用 Remote-SSH 连 `jetson` 就行。
 
 ## 常见问题
