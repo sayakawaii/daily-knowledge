@@ -18,6 +18,7 @@
 - **项目二的软件版本与底盘**（2026-11-11，第 3 课）：JetPack 7.2 + ROS 2 Jazzy + Isaac ROS 4.6，全部 apt 安装；不用 Humble（2027-05 停止支持），暂不用 Lyrical（Jetson 的 Ubuntu 24.04 上没有官方 Nav2 包）。底盘自己搭（JGB37-520 编码器电机 + STM32 或 ESP32 + RPLIDAR C1），主线走 ros2_control + 自定义串口协议，micro-ROS 作对照。
 - **板子到货与装机**（2026-11-18）：淘宝 3,519 元套装（945-13766-0000-000，官方 P3768 载板 + P3767-0003 量产 8GB 模组，256 GB NVMe），卖家预装 JetPack 6.2（R36.4.3），检查正常。计划在家用 U 盘装 JetPack 7.2.1，步骤见 [jetson-setup-guide.md](jetson-setup-guide.md)。不要用公司网络连板子。
 - **装机完成**（2026-11-20）：U 盘装 7.2.1 后 apt 自动升到 JetPack 7.2.2（r39.2.2），TensorRT 随之变成 11.4（Ultralytics 暂不支持 11）。决定保留 11.4，第 2 课改用「Ultralytics 导出 FP16 ONNX + trtexec 建引擎」；yolo11n FP16 中位 4.29 ms（25W、未锁频）。PyTorch 2.15（cu132）、ROS 2 Jazzy 桌面版和项目二用到的包都已验证。详见指南末尾「实际装机记录」。
+- **TensorRT 改回 10.16**（2026-11-20 晚上，推翻了下午的决定）：新情况是 DeepStream 9.1 和 9.2 也都依赖 TensorRT 10，继续守着 11 等于把自己和英伟达自己的工具链、社区工具都隔开；招聘方看的是做没做过部署，不看版本号。已降回 JetPack 7.2.1 组件，版本锁定，装好 DeepStream 9.1；Ultralytics 原始流程跑通，yolo11n FP16 引擎 mAP50-95 0.393，推理 4.8 ms（25W）。家里已下载 Gazebo、TurtleBot3 仿真、Isaac ROS 4.6 镜像、Ollama + Qwen3 4B（16.8 token/s）。
 
 ## 候选题目（排在前面的优先）
 

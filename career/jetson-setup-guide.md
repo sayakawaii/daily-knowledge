@@ -352,9 +352,10 @@ hostname -I
 | 组件 | 实际版本 | 和上文的差异 |
 | --- | --- | --- |
 | Jetson Linux | r39.2.2（2026-11-13 发布） | U 盘装的是 r39.2.1，`apt dist-upgrade` 自动升到了 r39.2.2 |
-| JetPack | `nvidia-jetpack 7.2.2-b56` | 上文写的是 7.2.1 |
+| JetPack | `nvidia-jetpack 7.2.1-b49`（已锁定） | 先被自动升到了 7.2.2，11-20 晚上降回 7.2.1，见下一节 |
 | CUDA / cuDNN | 13.2 / 9.20 | 一致 |
-| TensorRT | **11.4.1**（包名 `libnvinfer11`） | 上文写的是 10.16.2。7.2.2 的 `nvidia-tensorrt` 依赖 11.4，7.2.1 依赖 10.16.2 |
+| TensorRT | **10.16.2**（已锁定） | 7.2.2 带的是 11.4.1，Ultralytics 和 DeepStream 都不支持，所以降回了 10.16.2 |
+| DeepStream | 9.1.0 | `deepstream-app --version-all` 显示 TensorRT 10.16 |
 | PyTorch | 2.15.0+cu132，GPU 矩阵运算通过 | 按 cu130 源装，装上的是 cu132 版本，不影响使用 |
 | ONNX Runtime | 1.24.0，可用 TensorRT / CUDA 加速 | 一致 |
 | Ultralytics | 8.4.216 | 一致 |
@@ -363,11 +364,27 @@ hostname -I
 
 `compatible` 显示的是 `p3767-0005-super`，和旧系统显示的 `0003` 不一样，内存仍是 8 GB，不影响使用。
 
-### TensorRT 11 和第 2 课
+### TensorRT：从 11.4 降回 10.16（2026-11-20 晚上）
+
+**现在的状态**：TensorRT 10.16.2。第 2 课按 6.5 节的原始流程走就行（`yolo export format=engine half=True`），已经验证过。yolo11n 的 FP16 引擎：COCO val2017 上 mAP50-95 是 0.393（pycocotools 算法，官方 FP32 是 39.5），batch=1 时每张图推理 4.8 ms（25W 模式），引擎构建花了约 7.5 分钟。
+
+**为什么降**：保留 11.4 时，第 2 课可以绕开（见下面的旧流程），但后来发现 DeepStream 9.1 和 9.2 也都依赖 TensorRT 10。官方工具链和社区工具都还没支持 11，继续用 11 就会被隔在生态外面。
+
+**怎么降的**：先 `apt-mark unhold`，再用 `apt-get install --allow-downgrades` 把所有版本为 `7.2.2-b56` 的 `nvidia-*` 元包指定成 `7.2.1-b49`；带版本号后缀的 TensorRT 11 库（`libnvinfer11` 等，名字以 11 结尾）删掉，换成对应的 10 版本，其他 TensorRT 包指定成 `10.16.2.10-1+cuda13.2`。VPI 也要一起退回 `4.1.4`。先用 `apt-get install -s` 模拟，根据 `Depends: X (= 版本) but ...` 的提示把漏掉的包补进列表，直到模拟没有报错，再正式执行，最后重新 `apt-mark hold`。结果是降级 38 个包、新装 7 个、删除 8 个（都是 TensorRT 11 的库）。
+
+**降完后要检查功耗模式**：重装 JetPack 会把功耗模式重置成 25W，要再运行一次 `sudo nvpmodel -m 2`。
+
+**DeepStream 9.1 还要另装一组系统库**，不然 `deepstream-app` 会报缺少 `libgstrtspserver-1.0.so.0`：
+
+```bash
+sudo apt install -y libssl3 libssl-dev libgles2-mesa-dev libgstreamer1.0-0 gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libgstreamer-plugins-base1.0-dev libgstrtspserver-1.0-0 libjansson4 libyaml-cpp-dev
+```
+
+#### 旧记录：TensorRT 11.4 下的绕行办法（留作参考）
 
 Ultralytics 目前要求 TensorRT 低于 11（`tensorrt-cu13>=10.15,<11`）。所以 6.5 节的 `yolo export format=engine` 会自动用 pip 去装一个 TensorRT 10，**看到这种情况就按 Ctrl+C 停掉**，不要让它装。TensorRT 11 也去掉了 `trtexec --fp16` 参数（报 `Unknown option: --fp16`），精度改为由 ONNX 里的数据类型决定。
 
-决定保留 11.4，第 2 课改用下面的流程，已在板子上验证：
+当时决定保留 11.4，第 2 课改用下面的流程，已在板子上验证：
 
 ```bash
 source ~/venvs/yolo/bin/activate && cd ~/projects/yolo
@@ -376,8 +393,6 @@ trtexec --onnx=yolo11n.onnx --saveEngine=yolo11n_trt11_fp16.engine   # 不要加
 ```
 
 实测（25W 模式、没有运行 `jetson_clocks`）：FP16 引擎 GPU 计算时间中位 4.29 ms（约 230 次/秒）；FP32 引擎中位 7.70 ms。
-
-如果以后想退回 TensorRT 10.16：英伟达源里还有 `nvidia-jetpack=7.2.1-b49` 和 `tensorrt=10.16.2.10-1+cuda13.2`，可以指定版本安装，再用 `apt-mark hold` 锁住。
 
 ### 装机过程踩到的坑
 
@@ -395,7 +410,7 @@ trtexec --onnx=yolo11n.onnx --saveEngine=yolo11n_trt11_fp16.engine   # 不要加
 ### 已经提前准备好的东西（2026-11-20）
 
 - **功耗模式**：已切到 MAXN_SUPER（`nvpmodel -m 2`），不需要重启。测性能前还要运行 `sudo jetson_clocks`，重启后会失效。
-- **锁定版本**：`apt-mark hold nvidia-jetpack nvidia-tensorrt tensorrt tensorrt-libs libnvinfer11 python3-libnvinfer`。要解锁用 `apt-mark unhold`。
+- **锁定版本**：`apt-mark hold nvidia-jetpack nvidia-tensorrt tensorrt tensorrt-libs libnvinfer10 python3-libnvinfer`。要解锁用 `apt-mark unhold`。
 - **模型**：`~/projects/yolo/` 下有 `yolo11n.pt`、`yolo11s.pt`、`yolo11m.pt`。
 - **COCO 验证集**：在 `~/datasets/coco`，只有 val2017 的 5000 张图和标注，配置文件是 `~/datasets/coco-val.yaml`。做法：从 Ultralytics 的 GitHub 下载 `coco2017labels.zip`，从 `images.cocodataset.org` 下载 `val2017.zip`，解压后写一个只有 val 的 yaml（train 也指向 val）。用法：`yolo val model=yolo11n.pt data=~/datasets/coco-val.yaml device=0`。
 - **精度基线**：yolo11n，PyTorch FP32，mAP50-95 = 0.389（官方 39.5，差距来自 Ultralytics 自带评估和 pycocotools 的算法不同）。每张图的耗时：前处理 0.8 ms，推理 8.8 ms，后处理 2.7 ms（batch=16）。
@@ -404,7 +419,7 @@ trtexec --onnx=yolo11n.onnx --saveEngine=yolo11n_trt11_fp16.engine   # 不要加
 - **Gazebo 仿真（Harmonic）和 TurtleBot3**：装在板子上（`ros_gz_sim`、`turtlebot3_gazebo`、`nav2_minimal_tb3_sim`）。**不要装 `ros-jazzy-ros-gz`、`ros-jazzy-turtlebot3`、`ros-jazzy-turtlebot3-navigation2` 这三个包**：它们会把 Ubuntu 自带的 OpenCV 4.6 装回来，和 JetPack 的 OpenCV 4.8 冲突，apt 会报 `pkgProblemResolver::Resolve generated breaks`。只装需要的子包。`~/.bashrc` 里设了 `TURTLEBOT3_MODEL=waffle`。
 - **Isaac ROS 4.6**：装了 `isaac-ros-cli`，模式是 docker，镜像（2.27 GB）已经用 `isaac-ros activate --build-only` 预先下载好了，工作区在 `~/workspaces/isaac_ros-dev`。Docker 走代理（`/etc/systemd/system/docker.service.d/proxy.conf`），带 GPU 的容器测试通过。
 - **Ollama 0.40.16 + Qwen3 4B**：模型跑在 GPU 上（`ollama ps` 显示 100% GPU），生成速度约 16.8 token/秒。第一次加载约 2 分钟。Ollama 服务也走代理。
-- **DeepStream 还没装**：9.1 和 9.2 都依赖 TensorRT 10，跟当前的 TensorRT 11.4 冲突。
+- **DeepStream 9.1**：降回 TensorRT 10.16 后装好了，在 `/opt/nvidia/deepstream/deepstream`，另外要装的系统库见上文。
 - **家里宽带用 IPv6 时，清华镜像会返回 403**：已经让 apt 强制走 IPv4（`/etc/apt/apt.conf.d/99force-ipv4`）。
 - **公司电脑开着 VPN 时，连不上家里局域网的板子**：VPN 把局域网地址的流量也转进了公司隧道。USB 线上的 IPv6 本地地址 `fe80::1` 不受影响，所以 `jetson` 别名改成了 `fe80::1%%79`（`79` 是 Windows 上 USB 网卡的编号，换口后可能会变）。另外，USB 线会给 Windows 虚拟出两张网卡，它们抢 `192.168.55.100` 这个地址，这就是 IPv4 时断时续的原因。
 - **电脑上的 SSH 别名**：`~/.ssh/config` 里有 `jetson`（USB 线，`192.168.55.1`）和 `jetson-wifi`（热点，`172.20.10.7`）。在 Cursor 里用 Remote-SSH 连 `jetson` 就行。
