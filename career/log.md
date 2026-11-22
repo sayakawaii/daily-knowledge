@@ -19,6 +19,7 @@
 - **板子到货与装机**（2026-11-18）：淘宝 3,519 元套装（945-13766-0000-000，官方 P3768 载板 + P3767-0003 量产 8GB 模组，256 GB NVMe），卖家预装 JetPack 6.2（R36.4.3），检查正常。计划在家用 U 盘装 JetPack 7.2.1，步骤见 [jetson-setup-guide.md](jetson-setup-guide.md)。不要用公司网络连板子。
 - **装机完成**（2026-11-20）：U 盘装 7.2.1 后 apt 自动升到 JetPack 7.2.2（r39.2.2），TensorRT 随之变成 11.4（Ultralytics 暂不支持 11）。决定保留 11.4，第 2 课改用「Ultralytics 导出 FP16 ONNX + trtexec 建引擎」；yolo11n FP16 中位 4.29 ms（25W、未锁频）。PyTorch 2.15（cu132）、ROS 2 Jazzy 桌面版和项目二用到的包都已验证。详见指南末尾「实际装机记录」。
 - **TensorRT 改回 10.16**（2026-11-20 晚上，推翻了下午的决定）：新情况是 DeepStream 9.1 和 9.2 也都依赖 TensorRT 10，继续守着 11 等于把自己和英伟达自己的工具链、社区工具都隔开；招聘方看的是做没做过部署，不看版本号。已降回 JetPack 7.2.1 组件，版本锁定，装好 DeepStream 9.1；Ultralytics 原始流程跑通，yolo11n FP16 引擎 mAP50-95 0.393，推理 4.8 ms（25W）。家里已下载 Gazebo、TurtleBot3 仿真、Isaac ROS 4.6 镜像、Ollama + Qwen3 4B（16.8 token/s）。
+- **小白部署练习**（2026-11-21）：写了 [jetson-guide/](jetson-guide/README.md)，7 道练习（NumPy + softmax → PyTorch 分类 → ONNX → TensorRT Python 接口 → YOLO letterbox / NMS → 分段测速 → 摄像头实时），关键代码留空、用 TODO 注释提示，每道有自动检查；完整答案只在板子的 `~/.jetson-solutions/`，不进仓库。实测（MAXN_SUPER + jetson_clocks）：yolo11n mAP50-95（pycocotools）FP32 0.394 / FP16 0.393 / INT8 0.378，`yolo val` 报的推理 20.0 / 4.4 / 3.0 ms；FP16 端到端 11.3 ms，其中推理 5.5 ms；USB 摄像头实时 29 fps，被摄像头卡住。新发现的坑：onnxruntime-gpu 的 CUDA 后端没有为 sm_87 编译，改用 TensorRT 后端。
 
 ## 候选题目（排在前面的优先）
 
