@@ -158,8 +158,10 @@ sudo apt install build-essential flex bison bc libssl-dev libelf-dev kmod cpio r
 |---|---|---|
 | 源码 | 1.6 GB（工作副本用硬链接，不额外占） | 同左 |
 | 编译输出 | 0.9 GB（关了调试信息） | 同左 |
-| 编 Image（实测） | 16.5 分钟（`-j6`） | 还没实测 |
-实测（2026-11-28）：本机编译、`check_abi.sh`、安装、重启、`test.sh` 15 项全过（包括命令行参数练习），`uninstall.sh` 回退后 `extlinux.conf` 和安装前逐字节相同。
+| 编 Image（实测） | 16.5 分钟（`-j6`） | 5 分 19 秒（`-j8`，`nice -n 19`） |
+
+实测（2026-11-28），两种编法都完整走了一遍：编译、`check_abi.sh`、安装、重启、`test.sh` 全过（本机编译那次也测了命令行参数练习，15 项），
+`uninstall.sh` 回退后 `extlinux.conf` 和安装前逐字节相同。
 
 ## 7. 动手：本机编译（在板子上）
 
@@ -226,9 +228,6 @@ sudo reboot
 ## 8. 动手：交叉编译（在 4080 的 WSL 上）
 
 脚本是同一套：检测到不是 aarch64，就自动加上 `ARCH=arm64 CROSS_COMPILE=...`，配置和版本号通过 ssh 从板子上取。
-
-> 这一节还没在 WSL 上完整跑过（WSL 还缺 flex、bison、libelf-dev）。源码和工具链都已就位，工具链也确认能用。
-
 ```bash
 bash                  # WSL 的登录 shell 是 fish，脚本要在 bash 里跑
 git clone https://github.com/sayakawaii/daily-knowledge.git ~/daily-knowledge
@@ -243,7 +242,8 @@ ssh jetson-home sudo reboot
 
 和本机编译的区别：
 
-- 交叉编译器就是官方用的 gcc 13.2，配置差异里连编译器版本号都一样，`GCC_PLUGINS` 也能保留（前提是工具链带了插件头文件）；
+- 交叉编译器就是官方用的 gcc 13.2，实测配置差异里只剩自己改的那几项，连编译器版本号、`GCC_PLUGINS` 都和官方一样；
+  `/proc/version` 里会显示 `aarch64-none-linux-gnu-gcc (crosstool-NG 1.26.0) 13.2.0`，只有编译者和时间不同；
 - `modinfo` 在 x86 上也能读 arm64 的 `.ko`，所以 `check_abi.sh` 照样能跑；
 - 交叉编译出来的模块和 Image **只能拷到板子上用**，不能在 WSL 里 `insmod`。
 

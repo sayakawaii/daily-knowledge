@@ -39,4 +39,4 @@ Canvas 存在本机工作区目录里，不进仓库：
 
 - 桌面上的《离职协议签字前核对表》（PDF + HTML，A4 横版一页），来自第 1 课第七节。
 - [`jetson-guide/`](./jetson-guide/README.md)：小白版 Jetson 部署练习（7 道，答案留空），配合第 2 课使用。完整答案在板子的 `~/.jetson-solutions/`，不要推到仓库。
-- [`../jetson-drivers/`](../jetson-drivers/README.md)：Jetson 驱动开发教程（第一批 10 章：内核基础、40 针各接口、风扇、CAN、改内核；答案留空）。完整答案在板子的 `~/.driver-solutions/`，不要推到仓库。
+- [`../jetson-drivers/`](../jetson-drivers/README.md)：Jetson 驱动开发教程（13 章：内核基础、40 针各接口、风扇、CAN、改内核、USB、PCIe、摄像头；答案留空）。完整答案在板子的 `~/.driver-solutions/`，不要推到仓库。

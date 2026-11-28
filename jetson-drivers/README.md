@@ -26,12 +26,12 @@
 | 40 针 UART | 8/10 脚（TX/RX），11/36 脚（RTS/CTS），`/dev/ttyTHS1` | tty、serdev | [第 7 章](07-uart/) |
 | CAN | 片上 mttcan 控制器 `can0`（需要外接收发器） | SocketCAN、netdev | [第 8 章](08-can/) |
 | 40 针 I2S | 12/35/38/40 脚，7 脚是音频主时钟 | ALSA ASoC | 未覆盖（见下方路线） |
-| USB 3.2 Type-A ×4 | tegra-xusb 主控，板上有一个 4 口集线器 | USB host | 第二批 |
-| USB-C | 设备模式（`usb0`/`usb1` 虚拟网卡、`ttyGS0` 串口）+ 烧录 | USB gadget | 第二批 |
-| 千兆网口 | RTL8111（走 PCIe） | netdev、PCIe | 第二批 |
-| M.2 Key M ×2 | PCIe，现在插着 NVMe 固态硬盘 | PCIe、NVMe | 第二批 |
-| M.2 Key E | PCIe，现在插着 RTL8822CE Wi-Fi，蓝牙走 USB | PCIe、USB | 第二批 |
-| MIPI CSI-2 ×2（22 针） | 摄像头 | V4L2、media controller | 第二批 |
+| USB 3.2 Type-A ×4 | tegra-xusb 主控，板上有一个 4 口集线器 | USB host | [第 10 章](10-usb/) |
+| USB-C | 设备模式（`usb0`/`usb1` 虚拟网卡、`ttyGS0` 串口）+ 烧录 | USB gadget | [第 10 章](10-usb/)（configfs gadget） |
+| 千兆网口 | RTL8111（走 PCIe） | netdev、PCIe | [第 11 章](11-pcie/) |
+| M.2 Key M ×2 | PCIe，现在插着 NVMe 固态硬盘 | PCIe、NVMe | [第 11 章](11-pcie/) 讲拓扑，不碰系统盘 |
+| M.2 Key E | PCIe，现在插着 RTL8822CE Wi-Fi，蓝牙走 USB | PCIe、USB | [第 11 章](11-pcie/) 讲拓扑 |
+| MIPI CSI-2 ×2（22 针） | 摄像头 | V4L2、media controller | [第 12 章](12-camera/) |
 | DisplayPort | 显示输出 | DRM（NVIDIA 驱动，不开源部分多） | 不打算写 |
 | 12 针按键接口 | 电源、复位、恢复模式按键 | — | 只在第 9 章「起不来怎么办」里用到 |
 
@@ -81,6 +81,14 @@ i2c-1 总线上，载板已经接了 fusb301（0x25）和 INA3221 电源监测�
 | （可选）USB-CAN 适配器 | 第 8 章 | 50 元起 | CAN 总线上至少要两个节点。也可以用一块带 CAN 的单片机当第二个节点 |
 | （可选）PCA9685 16 路 PWM 模块 | 进阶练习 | 10 元 | I2C 接口，可以练习写 PWM 控制器驱动（提供 PWM 的一方） |
 
+第二批（第 10～12 章）同样不买也能学完：USB 用内核的虚拟主控 dummy_hcd，PCIe 借板载网卡芯片，摄像头用虚拟 V4L2 驱动。想接真硬件：
+
+| 零件 | 用在 | 参考价 | 注意 |
+|---|---|---|---|
+| USB-C 转 USB-A 数据线 | 第 10 章 `test_cable.sh` | 10 元 | 要**数据线**，只能充电的线不行。板子自己的 USB-C 口插到自己的 USB-A 口上 |
+| 网线 | 第 11 章练习 | 5 元 | 插路由器，看链路状态变化 |
+| IMX219 摄像头模组 | 第 12 章 | 几十元起 | 板子上是 22 针座。树莓派原版模组是 15 针，要配「15 转 22 针」排线；Jetson 专用的模组一般自带 |
+
 ## 学习路线
 
 | 章 | 内容 | 要接硬件吗 |
@@ -95,10 +103,13 @@ i2c-1 总线上，载板已经接了 fusb301（0x25）和 INA3221 电源监测�
 | [7](07-uart/) | termios、内部回环、serdev 驱动 | 可选：USB-TTL |
 | [8](08-can/) | SocketCAN、虚拟 CAN 网卡驱动、mttcan 回环 | 可选：收发器 + 第二个节点 |
 | [9](09-kernel-modify/) | 改内核：Kconfig、编进内核的驱动、本机/交叉编译、并存安装、回退 | 不用，但要重启 |
+| [10](10-usb/) | USB：描述符、URB、主机侧驱动、configfs gadget、dummy_hcd 虚拟主控 | 不用；可选一根 USB-C 转 A 数据线 |
+| [11](11-pcie/) | PCIe：配置空间、BAR、INTx/MSI、DMA 与 SMMU、驱动绑定（借板载网卡芯片） | 不用 |
+| [12](12-camera/) | V4L2、videobuf2、虚拟摄像头、采集程序、media controller、CSI 摄像头 | 不用；可选 IMX219 |
 
-第 0～2 章是基础，按顺序学。3～8 章互相独立，可以按兴趣挑。第 9 章建议放到最后。
+第 0～2 章是基础，按顺序学。3～8 章和 10～12 章互相独立，可以按兴趣挑。第 9 章建议放到最后（第 10 章的练习会用到它）。
 
-**第二批（还没写）：** USB（主机侧驱动、gadget）、PCIe 和以太网、CSI 摄像头（V4L2）。I2S 音频（ASoC）如果需要可以再加。
+I2S 音频（ASoC）没有覆盖，如果需要可以再加。
 
 ## 开始之前
 
@@ -110,7 +121,7 @@ git clone https://github.com/sayakawaii/daily-knowledge.git && cd daily-knowledg
 sudo apt install build-essential nvidia-l4t-kernel-headers i2c-tools can-utils gpiod
 
 # 3. 第 2 章：编译并安装教程覆盖层，重启（第 3～8 章的硬件节点都在里面）
-# 4. 模拟器：第 3 章用 tools/gpio-sim，第 5 章用 tools/i2c-stub，各章 README 里写了怎么编
+# 4. 模拟器：第 3 章用 tools/gpio-sim，第 5 章用 tools/i2c-stub，第 10 章用 tools/usb-sim，各章 README 里写了怎么编
 ```
 
 每章的用法都一样：
@@ -133,7 +144,8 @@ make            # 编驱动和测试程序
 ## 目录
 
 ```
-00-kernel-basics/ … 09-kernel-modify/   各章
+00-kernel-basics/ … 12-camera/   各章
+tools/usb-sim/      在源码树外编译 dummy_hcd 虚拟 USB 主控和 loopback gadget 功能（第 10 章）
 tools/gpio-sim/     在源码树外编译内核自带的 gpio-sim 模拟器（第 3 章）
 tools/i2c-stub/     在源码树外编译 i2c-stub 模拟器（第 5 章）
 tools/regpeek/      只读的寄存器查看工具（第 4 章）
