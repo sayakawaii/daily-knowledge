@@ -1,3 +1,6 @@
 # Windows PowerShell 5.1 需要 CRLF + UTF-8 BOM 才能正确读取带中文的脚本。
 # BOM 本身是文件内容的一部分，git 会原样保留；这里只固定行尾。
 *.ps1 text eol=crlf
+# 在 Linux（Jetson、WSL）上运行或给 patch 用的文件必须是 LF
+*.sh text eol=lf
+*.patch text eol=lf

@@ -1,0 +1,70 @@
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -591,4 +591,13 @@
+ source "drivers/misc/uacce/Kconfig"
+ source "drivers/misc/pvpanic/Kconfig"
+ source "drivers/misc/mchp_pci1xxxx/Kconfig"
++
++config TUTORIAL_HELLO
++	bool "jetson-drivers tutorial: built-in hello driver"
++	depends on PROC_FS
++	help
++	  A tiny built-in driver from the jetson-drivers tutorial. It prints a
++	  line at boot and creates /proc/tutorial_hello.
++
++	  If unsure, say N.
+ endmenu
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -69,3 +69,4 @@
+ obj-$(CONFIG_TPS6594_ESM)	+= tps6594-esm.o
+ obj-$(CONFIG_TPS6594_PFSM)	+= tps6594-pfsm.o
+ obj-$(CONFIG_NSM)		+= nsm.o
++obj-$(CONFIG_TUTORIAL_HELLO)	+= tutorial_hello.o
+--- a/drivers/misc/tutorial_hello.c
++++ b/drivers/misc/tutorial_hello.c
+@@ -0,0 +1,44 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * tutorial_hello：编译进内核（不是模块）的最小驱动，用来演示改内核源码的完整流程。
++ *
++ *   - Kconfig 里加一个选项 CONFIG_TUTORIAL_HELLO，Makefile 里加一行，才会被编译；
++ *   - 开机时 late_initcall 打印一行日志；
++ *   - 创建 /proc/tutorial_hello，显示问候语、内核版本、开机后多久初始化的；
++ *   - 问候语是参数，编进内核的「模块参数」通过内核命令行传：tutorial_hello.greeting=xxx
++ *     运行时也能在 /sys/module/tutorial_hello/parameters/greeting 看到。
++ */
++#include <linux/init.h>
++#include <linux/module.h>
++#include <linux/proc_fs.h>
++#include <linux/seq_file.h>
++#include <linux/utsname.h>
++#include <linux/jiffies.h>
++
++static char *greeting = "hello from a built-in driver";
++module_param(greeting, charp, 0444);
++MODULE_PARM_DESC(greeting, "text shown in /proc/tutorial_hello");
++
++static unsigned long init_ms;
++
++static int tutorial_hello_show(struct seq_file *m, void *v)
++{
++	seq_printf(m, "%s\n", greeting);
++	seq_printf(m, "kernel %s %s\n", init_utsname()->release, init_utsname()->version);
++	seq_printf(m, "initialized %lu ms after boot\n", init_ms);
++	return 0;
++}
++
++static int __init tutorial_hello_init(void)
++{
++	init_ms = jiffies_to_msecs(jiffies - INITIAL_JIFFIES);
++	if (!proc_create_single("tutorial_hello", 0444, NULL, tutorial_hello_show))
++		return -ENOMEM;
++	pr_info("tutorial_hello: %s (at %lu ms)\n", greeting, init_ms);
++	return 0;
++}
++/*
++ * 编进内核时没有「加载」这回事，初始化函数按 initcall 级别在开机时依次调用：
++ * core → postcore → arch → subsys → fs → device（module_init 编进内核时就是这一级）→ late
++ */
++late_initcall(tutorial_hello_init);

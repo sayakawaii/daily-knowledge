@@ -1,0 +1,169 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * jetson-drivers 教程覆盖层（Jetson Orin Nano 开发板 P3768 + P3767-0005）
+ *
+ * 1. 40 针排针的引脚复用：SPI1（19/21/23/24/26 脚）、PWM（15/32/33 脚）、
+ *    GPIO（29 脚输出、31 脚输入）
+ * 2. 第 3、4、6、7 章驱动要绑定的设备节点
+ *
+ * 编译：cpp ... | dtc -@ -I dts -O dtb -o tutorial-overlay.dtbo -   （见 build.sh）
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/tegra234-gpio.h>
+#include <dt-bindings/pinctrl/pinctrl-tegra.h>
+
+/ {
+	overlay-name = "jetson-drivers tutorial";
+	jetson-header-name = "Jetson 40pin Header";
+	compatible = "nvidia,p3768-0000+p3767-0000", "nvidia,p3768-0000+p3767-0001",
+		     "nvidia,p3768-0000+p3767-0003", "nvidia,p3768-0000+p3767-0004",
+		     "nvidia,p3768-0000+p3767-0005", "nvidia,p3768-0000+p3767-0000-super",
+		     "nvidia,p3768-0000+p3767-0001-super", "nvidia,p3768-0000+p3767-0003-super",
+		     "nvidia,p3768-0000+p3767-0004-super", "nvidia,p3768-0000+p3767-0005-super";
+
+	/* 1. 引脚复用 */
+	fragment@0 {
+		target = <&pinmux>;
+		__overlay__ {
+			pinctrl-names = "default";
+			pinctrl-0 = <&tutorial_pins>;
+
+			tutorial_pins: tutorial-pinmux {
+				/* GPIO：29 脚 PQ.05 输出，关掉三态才能驱动引脚 */
+				hdr40-pin29 {
+					nvidia,pins = "soc_gpio32_pq5";
+					nvidia,function = "rsvd0";
+					nvidia,gpio-mode = <0>;
+					nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				};
+				/* GPIO：31 脚 PQ.06 输入，内部上拉，按键接到 GND */
+				hdr40-pin31 {
+					nvidia,pins = "soc_gpio33_pq6";
+					nvidia,function = "rsvd0";
+					nvidia,gpio-mode = <0>;
+					nvidia,pull = <TEGRA_PIN_PULL_UP>;
+					nvidia,tristate = <TEGRA_PIN_ENABLE>;
+					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				};
+
+				/* PWM：15 脚 PWM1、33 脚 PWM5、32 脚 PWM7（gpio-mode = 1 表示交给外设，不当 GPIO 用） */
+				hdr40-pin15 {
+					nvidia,pins = "soc_gpio39_pn1";
+					nvidia,function = "gp";
+					nvidia,gpio-mode = <1>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+				};
+				hdr40-pin32 {
+					nvidia,pins = "soc_gpio19_pg6";
+					nvidia,function = "gp";
+					nvidia,gpio-mode = <1>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+				};
+				hdr40-pin33 {
+					nvidia,pins = "soc_gpio21_ph0";
+					nvidia,function = "gp";
+					nvidia,gpio-mode = <1>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+				};
+
+				/* SPI1：19 MOSI、21 MISO、23 SCK、24 CS0、26 CS1 */
+				hdr40-pin19 {
+					nvidia,pins = "spi1_mosi_pz5";
+					nvidia,function = "spi1";
+					nvidia,gpio-mode = <1>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				};
+				hdr40-pin21 {
+					nvidia,pins = "spi1_miso_pz4";
+					nvidia,function = "spi1";
+					nvidia,gpio-mode = <1>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				};
+				hdr40-pin23 {
+					nvidia,pins = "spi1_sck_pz3";
+					nvidia,function = "spi1";
+					nvidia,gpio-mode = <1>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				};
+				hdr40-pin24 {
+					nvidia,pins = "spi1_cs0_pz6";
+					nvidia,function = "spi1";
+					nvidia,gpio-mode = <1>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				};
+				hdr40-pin26 {
+					nvidia,pins = "spi1_cs1_pz7";
+					nvidia,function = "spi1";
+					nvidia,gpio-mode = <1>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				};
+			};
+		};
+	};
+
+	/* 2. 第 3 章：GPIO 驱动节点 */
+	fragment@1 {
+		target-path = "/";
+		__overlay__ {
+			tutorial-gpio {
+				compatible = "tutorial,gpio-demo";
+				led-gpios = <&gpio TEGRA234_MAIN_GPIO(Q, 5) GPIO_ACTIVE_HIGH>;
+				button-gpios = <&gpio TEGRA234_MAIN_GPIO(Q, 6) GPIO_ACTIVE_LOW>;
+				debounce-ms = <20>;
+			};
+
+			/* 第 4 章：排针 15 脚的 PWM1，默认周期 1 ms（1 kHz） */
+			tutorial-pwm {
+				compatible = "tutorial,pwm-demo";
+				pwms = <&pwm1 0 1000000>;
+			};
+
+			/* 第 4 章：风扇。用的就是 pwm-fan 节点用的那一路 PWM，所以要先卸载 pwm_fan 模块 */
+			tutorial-fan {
+				compatible = "tutorial,fan-demo";
+				pwms = <&pwm3 0 45334>, <&tach 0 1000000>;
+				pwm-names = "fan", "tach";
+			};
+		};
+	};
+
+	/* 转速计节点在基础设备树里没有标签，在这里给它加一个，上面才能引用 */
+	fragment@2 {
+		target-path = "/bus@0/tachometer@39c0000";
+		tach: __overlay__ {
+		};
+	};
+
+	/* 第 6 章：把 spi@3210000 片选 0 上的 spidev 换成教程驱动；片选 1 仍是 spidev */
+	fragment@3 {
+		target-path = "/bus@0/spi@3210000/spi@0";
+		__overlay__ {
+			compatible = "tutorial,spi-demo";
+			spi-max-frequency = <10000000>;
+		};
+	};
+
+	/* 第 7 章：ttyTHS2（uarte）下挂一个 serdev 设备，挂上之后 /dev/ttyTHS2 会消失 */
+	fragment@4 {
+		target = <&uarte>;
+		__overlay__ {
+			tutorial-serdev {
+				compatible = "tutorial,serdev-demo";
+				current-speed = <115200>;
+			};
+		};
+	};
+};
