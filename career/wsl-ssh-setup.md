@@ -20,6 +20,11 @@ sudo sed -i 's/^#\?Port .*/Port 2222/' /etc/ssh/sshd_config
 sudo systemctl disable --now ssh.socket; sudo systemctl enable --now ssh.service
 whoami; nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
 ```
+这里是输出结果
+❯ whoami; nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
+mingheh
+name, memory.total [MiB], driver_version
+NVIDIA GeForce RTX 4080, 16376 MiB, 621.40
 
 ## 第 3 步：在 Windows 上用管理员身份打开 PowerShell 粘贴
 
